@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PBI Pinch Zoom Pixelation Repro</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f0f0; }
+
+        .controls {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: #fff; padding: 12px; border-bottom: 1px solid #ccc;
+        }
+        .controls .row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+        .controls .row:last-child { margin-bottom: 0; }
+        .controls label { font-size: 13px; font-weight: 600; min-width: 50px; }
+        .controls button {
+            padding: 8px 14px; font-size: 13px; border-radius: 6px;
+            border: 1px solid #999; background: #f9f9f9;
+        }
+        .controls button.active { background: #0078d4; color: #fff; border-color: #0078d4; }
+        #scaleLabel { font-size: 13px; font-weight: 600; min-width: 40px; }
+
+        /* scrollContainer — wraps everything, scrollable */
+        .scroll-container {
+            margin-top: 140px;
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 140px);
+            overflow: auto;
+            background: #e8e8e8;
+            -webkit-overflow-scrolling: touch;
+            touch-action: manipulation;
+        }
+
+        /* transformArea (.displayArea) — gets transform: scale(N) */
+        .transform-area {
+            position: relative;
+            width: 500px;
+            height: 700px;
+            background: #fff;
+            transform-origin: left top;
+        }
+
+        /* visual containers — positioned absolutely like PBI visuals */
+        .visual-container {
+            position: absolute;
+            border: 1px solid #ddd;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        .vc-body {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .visual-title {
+            font-size: 13px; font-weight: 600;
+            padding: 8px; border-bottom: 1px solid #eee; color: #333;
+        }
+        .visual-content { padding: 8px; font-size: 11px; color: #666; }
+
+        .crisp-box {
+            border: 0.5px solid #0078d4;
+            margin: 3px 0; padding: 4px; font-size: 10px;
+        }
+
+        .explore-host-footer {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 60px;
+            background: #f5f5f5;
+            border-top: 1px solid #ddd;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; color: #888;
+        }
+
+        #info {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: #222; color: #0f0; font-family: monospace;
+            font-size: 11px; padding: 8px; z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <div class="row">
+            <label>Scale:</label>
+            <input type="range" id="scaleSlider" min="1" max="4" step="0.1" value="1" style="flex:1;">
+            <span id="scaleLabel">1.0x</span>
+        </div>
+        <div class="row">
+            <label>Pinch:</label>
+            <button class="pinch-btn" onclick="simulatePinch(1)">1x</button>
+            <button class="pinch-btn" onclick="simulatePinch(1.5)">1.5x</button>
+            <button class="pinch-btn" onclick="simulatePinch(2)">2x</button>
+            <button class="pinch-btn" onclick="simulatePinch(3)">3x</button>
+        </div>
+        <div class="row">
+            <label>Fix:</label>
+            <button onclick="applyFix('none', this)" class="active fix-btn">None (bug)</button>
+            <button onclick="applyFix('filter', this)" class="fix-btn">filter blur(0)</button>
+            <button onclick="applyFix('filter-parent', this)" class="fix-btn">filter on parent</button>
+            <button onclick="applyFix('repaint', this)" class="fix-btn">force repaint</button>
+            <button onclick="applyFix('opacity-hack', this)" class="fix-btn">opacity 0.999</button>
+            <button onclick="applyFix('perspective', this)" class="fix-btn">perspective</button>
+            <button onclick="applyFix('contain', this)" class="fix-btn">contain: layout</button>
+        </div>
+    </div>
+
+    <!-- Mimics the scrollContainer in PBI mobile -->
+    <div class="scroll-container" id="scrollContainer">
+        <!-- Mimics .displayArea / transformArea that gets scale(N) -->
+        <div class="transform-area" id="transformArea">
+
+            <!-- Visual 1: Text + thin borders -->
+            <div class="visual-container" style="left:15px; top:15px; width:220px; height:160px;">
+                <div class="vc-body">
+                    <div class="visual-title">Revenue by Region</div>
+                    <div class="visual-content">
+                        <div class="crisp-box">North America: $1.2M</div>
+                        <div class="crisp-box">Europe: $890K</div>
+                        <div class="crisp-box">Asia Pacific: $650K</div>
+                        <div class="crisp-box">Latin America: $340K</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual 2: SVG line chart -->
+            <div class="visual-container" style="left:255px; top:15px; width:230px; height:160px;">
+                <div class="vc-body">
+                    <div class="visual-title">Trend Line</div>
+                    <div class="visual-content">
+                        <svg viewBox="0 0 210 90" style="width:100%;height:90px;">
+                            <polyline points="10,75 40,55 70,65 100,35 130,45 160,25 200,12"
+                                fill="none" stroke="#0078d4" stroke-width="1.5"/>
+                            <circle cx="10" cy="75" r="2.5" fill="#0078d4"/>
+                            <circle cx="100" cy="35" r="2.5" fill="#0078d4"/>
+                            <circle cx="200" cy="12" r="2.5" fill="#0078d4"/>
+                            <line x1="0" y1="85" x2="210" y2="85" stroke="#ccc" stroke-width="0.5"/>
+                            <text x="10" y="84" font-size="8" fill="#999">Jan</text>
+                            <text x="100" y="84" font-size="8" fill="#999">Jun</text>
+                            <text x="190" y="84" font-size="8" fill="#999">Dec</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual 3: Table -->
+            <div class="visual-container" style="left:15px; top:195px; width:470px; height:130px;">
+                <div class="vc-body">
+                    <div class="visual-title">Sales Data Table</div>
+                    <div class="visual-content">
+                        <table style="width:100%;border-collapse:collapse;font-size:10px;">
+                            <tr style="border-bottom:0.5px solid #ddd;">
+                                <th style="text-align:left;padding:3px 6px;">Product</th>
+                                <th style="text-align:right;padding:3px 6px;">Q1</th>
+                                <th style="text-align:right;padding:3px 6px;">Q2</th>
+                                <th style="text-align:right;padding:3px 6px;">Q3</th>
+                                <th style="text-align:right;padding:3px 6px;">Q4</th>
+                            </tr>
+                            <tr style="border-bottom:0.5px solid #eee;">
+                                <td style="padding:3px 6px;">Widget A</td>
+                                <td style="text-align:right;padding:3px 6px;">$12,450</td>
+                                <td style="text-align:right;padding:3px 6px;">$14,230</td>
+                                <td style="text-align:right;padding:3px 6px;">$15,780</td>
+                                <td style="text-align:right;padding:3px 6px;">$18,100</td>
+                            </tr>
+                            <tr style="border-bottom:0.5px solid #eee;">
+                                <td style="padding:3px 6px;">Widget B</td>
+                                <td style="text-align:right;padding:3px 6px;">$8,900</td>
+                                <td style="text-align:right;padding:3px 6px;">$9,340</td>
+                                <td style="text-align:right;padding:3px 6px;">$11,200</td>
+                                <td style="text-align:right;padding:3px 6px;">$13,500</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual 4: Canvas bar chart -->
+            <div class="visual-container" style="left:15px; top:345px; width:220px; height:160px;">
+                <div class="vc-body">
+                    <div class="visual-title">Bar Chart (Canvas)</div>
+                    <div class="visual-content">
+                        <canvas id="chartCanvas" width="200" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual 5: KPI with sharp icons -->
+            <div class="visual-container" style="left:255px; top:345px; width:230px; height:160px;">
+                <div class="vc-body">
+                    <div class="visual-title">KPI Card</div>
+                    <div class="visual-content" style="text-align:center;padding-top:6px;">
+                        <div style="font-size:28px;font-weight:700;color:#0078d4;">$4.3M</div>
+                        <div style="font-size:10px;color:#888;margin:4px 0;">Total Revenue</div>
+                        <svg width="50" height="20" viewBox="0 0 50 20">
+                            <polygon points="25,2 45,18 5,18" fill="#107c10" stroke="none"/>
+                        </svg>
+                        <div style="font-size:10px;color:#107c10;">▲ 12.4% vs last quarter</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer mimicking ExploreHostFooter -->
+            <div class="explore-host-footer">
+                ExploreHost Footer (60px)
+            </div>
+        </div>
+    </div>
+
+    <div id="info">scale: 1.0 | transform: none</div>
+
+    <script>
+        const transformArea = document.getElementById('transformArea');
+        const scrollContainer = document.getElementById('scrollContainer');
+        const scaleSlider = document.getElementById('scaleSlider');
+        const scaleLabel = document.getElementById('scaleLabel');
+        const infoEl = document.getElementById('info');
+
+        /**
+         * Mimics PinchScrollCoordinator.onPinchEnd()
+         * - Sets transformOrigin to 'left top'
+         * - Applies transform: scale(N)
+         * - Scrolls to scaled focus position
+         *
+         * This is exactly what the real code does after a pinch gesture ends.
+         */
+        function simulatePinch(scale) {
+            scaleSlider.value = scale;
+            scaleLabel.textContent = scale.toFixed(1) + 'x';
+            applyFix(currentFix);
+            scrollContainer.scrollTo(0, 0);
+            updateActiveButtons(scale);
+        }
+
+        // Slider for fine-grained control
+        scaleSlider.addEventListener('input', () => {
+            const scale = parseFloat(scaleSlider.value);
+            scaleLabel.textContent = scale.toFixed(1) + 'x';
+            applyFix(currentFix);
+            updateActiveButtons(scale);
+        });
+
+        function updateActiveButtons(scale) {
+            document.querySelectorAll('.pinch-btn').forEach(btn => {
+                const btnScale = parseFloat(btn.textContent);
+                btn.classList.toggle('active', btnScale === scale);
+            });
+        }
+
+        let currentFix = 'none';
+
+        function applyFix(fix, btn) {
+            currentFix = fix;
+            const scale = parseFloat(scaleSlider.value);
+
+            // Reset all fixes
+            transformArea.style.filter = '';
+            transformArea.style.perspective = '';
+            transformArea.style.zoom = '';
+            transformArea.style.transform = `scale(${scale})`;
+            transformArea.style.contentVisibility = '';
+            document.querySelectorAll('.vc-body').forEach(el => {
+                el.style.zoom = '';
+                el.style.filter = '';
+                el.style.contentVisibility = '';
+                el.style.opacity = '';
+            });
+            document.querySelectorAll('.visual-container').forEach(el => {
+                el.style.zoom = '';
+                el.style.contentVisibility = '';
+                el.style.contain = '';
+            });
+
+            switch (fix) {
+                case 'none':
+                    break;
+
+                case 'filter':
+                    // filter on children — may create separate compositing layers
+                    document.querySelectorAll('.vc-body').forEach(el => {
+                        el.style.filter = 'blur(0px)';
+                    });
+                    break;
+
+                case 'filter-parent':
+                    // filter on the scaled parent itself — forces new bitmap
+                    transformArea.style.filter = 'blur(0px)';
+                    break;
+
+                case 'repaint':
+                    // Toggle display to force full re-rasterization after scale
+                    transformArea.style.display = 'none';
+                    transformArea.offsetHeight; // force layout
+                    transformArea.style.display = '';
+                    break;
+
+                case 'opacity-hack':
+                    // opacity < 1 creates a new stacking context + compositing layer
+                    document.querySelectorAll('.vc-body').forEach(el => {
+                        el.style.opacity = '0.999';
+                    });
+                    break;
+
+                case 'perspective':
+                    // perspective on parent changes compositing behavior
+                    transformArea.style.perspective = '1000px';
+                    break;
+
+                case 'contain':
+                    // contain: layout paint on children — isolates rendering
+                    document.querySelectorAll('.visual-container').forEach(el => {
+                        el.style.contain = 'layout paint';
+                    });
+                    break;
+            }
+
+            // Update fix button highlights
+            document.querySelectorAll('.fix-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+
+            const method = fix === 'zoom' ? `zoom: ${scale}` : `transform: scale(${scale})`;
+            infoEl.textContent = `scale: ${scale} | ${method} | fix: ${fix}`;
+        }
+
+        // Draw canvas bar chart
+        (function() {
+            const canvas = document.getElementById('chartCanvas');
+            const ctx = canvas.getContext('2d');
+            const bars = [60, 45, 72, 38, 55, 80, 50];
+            const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+            const barW = 20, gap = 8, startX = 5;
+            bars.forEach((h, i) => {
+                const x = startX + i * (barW + gap);
+                ctx.fillStyle = '#0078d4';
+                ctx.fillRect(x, 100 - h, barW, h);
+                ctx.fillStyle = '#666';
+                ctx.font = '8px -apple-system';
+                ctx.fillText(labels[i], x + 2, 98);
+            });
+            // Thin grid lines
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 0.5;
+            for (let y = 20; y < 100; y += 20) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(200, y);
+                ctx.stroke();
+            }
+        })();
+    </script>
+</body>
+</html>
+
