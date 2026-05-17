@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PBI Pinch Zoom Pixelation Repro</title>
+    <title>WebKit transform: scale() Pixelation Repro</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f0f0f0; }
@@ -22,7 +22,6 @@
         .controls button.active { background: #0078d4; color: #fff; border-color: #0078d4; }
         #scaleLabel { font-size: 13px; font-weight: 600; min-width: 40px; }
 
-        /* scrollContainer — wraps everything, scrollable */
         .scroll-container {
             margin-top: 140px;
             position: relative;
@@ -34,7 +33,6 @@
             touch-action: manipulation;
         }
 
-        /* transformArea (.displayArea) — gets transform: scale(N) */
         .transform-area {
             position: relative;
             width: 500px;
@@ -43,33 +41,33 @@
             transform-origin: left top;
         }
 
-        /* visual containers — positioned absolutely like PBI visuals */
-        .visual-container {
+        /* child panels — positioned absolutely */
+        .child-panel {
             position: absolute;
             border: 1px solid #ddd;
             background: #fff;
             box-shadow: 0 1px 4px rgba(0,0,0,0.1);
         }
 
-        .vc-body {
+        .panel-body {
             width: 100%;
             height: 100%;
             position: relative;
             overflow: hidden;
         }
 
-        .visual-title {
+        .panel-title {
             font-size: 13px; font-weight: 600;
             padding: 8px; border-bottom: 1px solid #eee; color: #333;
         }
-        .visual-content { padding: 8px; font-size: 11px; color: #666; }
+        .panel-content { padding: 8px; font-size: 11px; color: #666; }
 
         .crisp-box {
             border: 0.5px solid #0078d4;
             margin: 3px 0; padding: 4px; font-size: 10px;
         }
 
-        .explore-host-footer {
+        .footer-bar {
             position: absolute;
             bottom: 0; left: 0; right: 0;
             height: 60px;
@@ -90,7 +88,7 @@
     <div class="controls">
         <div class="row">
             <label>Scale:</label>
-            <input type="range" id="scaleSlider" min="1" max="20" step="0.1" value="1" style="flex:1;">
+            <input type="range" id="scaleSlider" min="1" max="4" step="0.1" value="1" style="flex:1;">
             <span id="scaleLabel">1.0x</span>
         </div>
         <div class="row">
@@ -112,29 +110,29 @@
         </div>
     </div>
 
-    <!-- Mimics the scrollContainer in PBI mobile -->
+    <!-- Scrollable wrapper -->
     <div class="scroll-container" id="scrollContainer">
-        <!-- Mimics .displayArea / transformArea that gets scale(N) -->
+        <!-- Parent element that receives transform: scale(N) -->
         <div class="transform-area" id="transformArea">
 
-            <!-- Visual 1: Text + thin borders -->
-            <div class="visual-container" style="left:15px; top:15px; width:220px; height:160px;">
-                <div class="vc-body">
-                    <div class="visual-title">Revenue by Region</div>
-                    <div class="visual-content">
-                        <div class="crisp-box">North America: $1.2M</div>
-                        <div class="crisp-box">Europe: $890K</div>
-                        <div class="crisp-box">Asia Pacific: $650K</div>
-                        <div class="crisp-box">Latin America: $340K</div>
+            <!-- Panel 1: Text + thin borders -->
+            <div class="child-panel" style="left:15px; top:15px; width:220px; height:160px;">
+                <div class="panel-body">
+                    <div class="panel-title">Text &amp; Borders</div>
+                    <div class="panel-content">
+                        <div class="crisp-box">Item A: 0.5px border</div>
+                        <div class="crisp-box">Item B: thin line</div>
+                        <div class="crisp-box">Item C: subpixel edge</div>
+                        <div class="crisp-box">Item D: fine detail</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Visual 2: SVG line chart -->
-            <div class="visual-container" style="left:255px; top:15px; width:230px; height:160px;">
-                <div class="vc-body">
-                    <div class="visual-title">Trend Line</div>
-                    <div class="visual-content">
+            <!-- Panel 2: SVG line chart -->
+            <div class="child-panel" style="left:255px; top:15px; width:230px; height:160px;">
+                <div class="panel-body">
+                    <div class="panel-title">SVG Lines</div>
+                    <div class="panel-content">
                         <svg viewBox="0 0 210 90" style="width:100%;height:90px;">
                             <polyline points="10,75 40,55 70,65 100,35 130,45 160,25 200,12"
                                 fill="none" stroke="#0078d4" stroke-width="1.5"/>
@@ -150,66 +148,66 @@
                 </div>
             </div>
 
-            <!-- Visual 3: Table -->
-            <div class="visual-container" style="left:15px; top:195px; width:470px; height:130px;">
-                <div class="vc-body">
-                    <div class="visual-title">Sales Data Table</div>
-                    <div class="visual-content">
+            <!-- Panel 3: Table with thin borders -->
+            <div class="child-panel" style="left:15px; top:195px; width:470px; height:130px;">
+                <div class="panel-body">
+                    <div class="panel-title">Table (0.5px borders)</div>
+                    <div class="panel-content">
                         <table style="width:100%;border-collapse:collapse;font-size:10px;">
                             <tr style="border-bottom:0.5px solid #ddd;">
-                                <th style="text-align:left;padding:3px 6px;">Product</th>
-                                <th style="text-align:right;padding:3px 6px;">Q1</th>
-                                <th style="text-align:right;padding:3px 6px;">Q2</th>
-                                <th style="text-align:right;padding:3px 6px;">Q3</th>
-                                <th style="text-align:right;padding:3px 6px;">Q4</th>
+                                <th style="text-align:left;padding:3px 6px;">Name</th>
+                                <th style="text-align:right;padding:3px 6px;">Col A</th>
+                                <th style="text-align:right;padding:3px 6px;">Col B</th>
+                                <th style="text-align:right;padding:3px 6px;">Col C</th>
+                                <th style="text-align:right;padding:3px 6px;">Col D</th>
                             </tr>
                             <tr style="border-bottom:0.5px solid #eee;">
-                                <td style="padding:3px 6px;">Widget A</td>
-                                <td style="text-align:right;padding:3px 6px;">$12,450</td>
-                                <td style="text-align:right;padding:3px 6px;">$14,230</td>
-                                <td style="text-align:right;padding:3px 6px;">$15,780</td>
-                                <td style="text-align:right;padding:3px 6px;">$18,100</td>
+                                <td style="padding:3px 6px;">Row 1</td>
+                                <td style="text-align:right;padding:3px 6px;">12,450</td>
+                                <td style="text-align:right;padding:3px 6px;">14,230</td>
+                                <td style="text-align:right;padding:3px 6px;">15,780</td>
+                                <td style="text-align:right;padding:3px 6px;">18,100</td>
                             </tr>
                             <tr style="border-bottom:0.5px solid #eee;">
-                                <td style="padding:3px 6px;">Widget B</td>
-                                <td style="text-align:right;padding:3px 6px;">$8,900</td>
-                                <td style="text-align:right;padding:3px 6px;">$9,340</td>
-                                <td style="text-align:right;padding:3px 6px;">$11,200</td>
-                                <td style="text-align:right;padding:3px 6px;">$13,500</td>
+                                <td style="padding:3px 6px;">Row 2</td>
+                                <td style="text-align:right;padding:3px 6px;">8,900</td>
+                                <td style="text-align:right;padding:3px 6px;">9,340</td>
+                                <td style="text-align:right;padding:3px 6px;">11,200</td>
+                                <td style="text-align:right;padding:3px 6px;">13,500</td>
                             </tr>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- Visual 4: Canvas bar chart -->
-            <div class="visual-container" style="left:15px; top:345px; width:220px; height:160px;">
-                <div class="vc-body">
-                    <div class="visual-title">Bar Chart (Canvas)</div>
-                    <div class="visual-content">
+            <!-- Panel 4: Canvas bar chart -->
+            <div class="child-panel" style="left:15px; top:345px; width:220px; height:160px;">
+                <div class="panel-body">
+                    <div class="panel-title">Canvas Drawing</div>
+                    <div class="panel-content">
                         <canvas id="chartCanvas" width="200" height="100"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- Visual 5: KPI with sharp icons -->
-            <div class="visual-container" style="left:255px; top:345px; width:230px; height:160px;">
-                <div class="vc-body">
-                    <div class="visual-title">KPI Card</div>
-                    <div class="visual-content" style="text-align:center;padding-top:6px;">
+            <!-- Panel 5: Large text + icon -->
+            <div class="child-panel" style="left:255px; top:345px; width:230px; height:160px;">
+                <div class="panel-body">
+                    <div class="panel-title">Large Text &amp; SVG Icon</div>
+                    <div class="panel-content" style="text-align:center;padding-top:6px;">
                         <div style="font-size:28px;font-weight:700;color:#0078d4;">$4.3M</div>
-                        <div style="font-size:10px;color:#888;margin:4px 0;">Total Revenue</div>
+                        <div style="font-size:10px;color:#888;margin:4px 0;">Sample Metric</div>
                         <svg width="50" height="20" viewBox="0 0 50 20">
                             <polygon points="25,2 45,18 5,18" fill="#107c10" stroke="none"/>
                         </svg>
-                        <div style="font-size:10px;color:#107c10;">▲ 12.4% vs last quarter</div>
+                        <div style="font-size:10px;color:#107c10;">+12.4%</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Footer mimicking ExploreHostFooter -->
-            <div class="explore-host-footer">
-                ExploreHost Footer (60px)
+            <!-- Footer bar -->
+            <div class="footer-bar">
+                Fixed Footer (60px)
             </div>
         </div>
     </div>
@@ -224,12 +222,9 @@
         const infoEl = document.getElementById('info');
 
         /**
-         * Mimics PinchScrollCoordinator.onPinchEnd()
-         * - Sets transformOrigin to 'left top'
-         * - Applies transform: scale(N)
-         * - Scrolls to scaled focus position
-         *
-         * This is exactly what the real code does after a pinch gesture ends.
+         * Simulates programmatic zoom by applying transform: scale(N)
+         * to the parent container — a common pattern in web apps that
+         * implement custom pinch-to-zoom.
          */
         function simulatePinch(scale) {
             scaleSlider.value = scale;
@@ -266,13 +261,13 @@
             transformArea.style.zoom = '';
             transformArea.style.transform = `scale(${scale})`;
             transformArea.style.contentVisibility = '';
-            document.querySelectorAll('.vc-body').forEach(el => {
+            document.querySelectorAll('.panel-body').forEach(el => {
                 el.style.zoom = '';
                 el.style.filter = '';
                 el.style.contentVisibility = '';
                 el.style.opacity = '';
             });
-            document.querySelectorAll('.visual-container').forEach(el => {
+            document.querySelectorAll('.child-panel').forEach(el => {
                 el.style.zoom = '';
                 el.style.contentVisibility = '';
                 el.style.contain = '';
@@ -283,39 +278,33 @@
                     break;
 
                 case 'filter':
-                    // filter on children — may create separate compositing layers
-                    document.querySelectorAll('.vc-body').forEach(el => {
+                    document.querySelectorAll('.panel-body').forEach(el => {
                         el.style.filter = 'blur(0px)';
                     });
                     break;
 
                 case 'filter-parent':
-                    // filter on the scaled parent itself — forces new bitmap
                     transformArea.style.filter = 'blur(0px)';
                     break;
 
                 case 'repaint':
-                    // Toggle display to force full re-rasterization after scale
                     transformArea.style.display = 'none';
-                    transformArea.offsetHeight; // force layout
+                    transformArea.offsetHeight;
                     transformArea.style.display = '';
                     break;
 
                 case 'opacity-hack':
-                    // opacity < 1 creates a new stacking context + compositing layer
-                    document.querySelectorAll('.vc-body').forEach(el => {
+                    document.querySelectorAll('.panel-body').forEach(el => {
                         el.style.opacity = '0.999';
                     });
                     break;
 
                 case 'perspective':
-                    // perspective on parent changes compositing behavior
                     transformArea.style.perspective = '1000px';
                     break;
 
                 case 'contain':
-                    // contain: layout paint on children — isolates rendering
-                    document.querySelectorAll('.visual-container').forEach(el => {
+                    document.querySelectorAll('.child-panel').forEach(el => {
                         el.style.contain = 'layout paint';
                     });
                     break;
@@ -334,7 +323,7 @@
             const canvas = document.getElementById('chartCanvas');
             const ctx = canvas.getContext('2d');
             const bars = [60, 45, 72, 38, 55, 80, 50];
-            const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+            const labels = ['A','B','C','D','E','F','G'];
             const barW = 20, gap = 8, startX = 5;
             bars.forEach((h, i) => {
                 const x = startX + i * (barW + gap);
