@@ -99,20 +99,6 @@
         </div>
     </div>
 
-    <!--
-        DOM structure:
-        
-        .scroll-container (overflow: auto, scrollable viewport)
-          └── .transform-area (receives: transform: scale(N), transform-origin: left top)
-                ├── .child-panel (absolutely positioned child elements)
-                │     └── .panel-body (text, SVG, table, canvas content)
-                └── .footer-bar (fixed-height footer)
-
-        When scale > 1x, the .transform-area is scaled up via CSS transform.
-        Child elements inside become visibly pixelated/blurry in Safari,
-        but render crisply in Chrome/Edge under the same conditions.
-    -->
-
     <!-- Scrollable wrapper -->
     <div class="scroll-container" id="scrollContainer">
         <!-- Parent element that receives transform: scale(N) -->
