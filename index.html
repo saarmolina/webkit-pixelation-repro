@@ -23,10 +23,10 @@
         #scaleLabel { font-size: 13px; font-weight: 600; min-width: 40px; }
 
         .scroll-container {
-            margin-top: 140px;
+            margin-top: 100px;
             position: relative;
             width: 100%;
-            height: calc(100vh - 140px);
+            height: calc(100vh - 100px);
             overflow: auto;
             background: #e8e8e8;
             -webkit-overflow-scrolling: touch;
@@ -92,23 +92,26 @@
             <span id="scaleLabel">1.0x</span>
         </div>
         <div class="row">
-            <label>Pinch:</label>
-            <button class="pinch-btn" onclick="simulatePinch(1)">1x</button>
-            <button class="pinch-btn" onclick="simulatePinch(1.5)">1.5x</button>
-            <button class="pinch-btn" onclick="simulatePinch(2)">2x</button>
-            <button class="pinch-btn" onclick="simulatePinch(3)">3x</button>
-        </div>
-        <div class="row">
-            <label>Fix:</label>
-            <button onclick="applyFix('none', this)" class="active fix-btn">None (bug)</button>
-            <button onclick="applyFix('filter', this)" class="fix-btn">filter blur(0)</button>
-            <button onclick="applyFix('filter-parent', this)" class="fix-btn">filter on parent</button>
-            <button onclick="applyFix('repaint', this)" class="fix-btn">force repaint</button>
-            <button onclick="applyFix('opacity-hack', this)" class="fix-btn">opacity 0.999</button>
-            <button onclick="applyFix('perspective', this)" class="fix-btn">perspective</button>
-            <button onclick="applyFix('contain', this)" class="fix-btn">contain: layout</button>
+            <button class="pinch-btn" onclick="setScale(1)">1x</button>
+            <button class="pinch-btn" onclick="setScale(1.5)">1.5x</button>
+            <button class="pinch-btn" onclick="setScale(2)">2x</button>
+            <button class="pinch-btn" onclick="setScale(3)">3x</button>
         </div>
     </div>
+
+    <!--
+        DOM structure:
+        
+        .scroll-container (overflow: auto, scrollable viewport)
+          └── .transform-area (receives: transform: scale(N), transform-origin: left top)
+                ├── .child-panel (absolutely positioned child elements)
+                │     └── .panel-body (text, SVG, table, canvas content)
+                └── .footer-bar (fixed-height footer)
+
+        When scale > 1x, the .transform-area is scaled up via CSS transform.
+        Child elements inside become visibly pixelated/blurry in Safari,
+        but render crisply in Chrome/Edge under the same conditions.
+    -->
 
     <!-- Scrollable wrapper -->
     <div class="scroll-container" id="scrollContainer">
@@ -212,7 +215,7 @@
         </div>
     </div>
 
-    <div id="info">scale: 1.0 | transform: none</div>
+    <div id="info">scale: 1.0 | transform: scale(1)</div>
 
     <script>
         const transformArea = document.getElementById('transformArea');
@@ -221,101 +224,24 @@
         const scaleLabel = document.getElementById('scaleLabel');
         const infoEl = document.getElementById('info');
 
-        /**
-         * Simulates programmatic zoom by applying transform: scale(N)
-         * to the parent container — a common pattern in web apps that
-         * implement custom pinch-to-zoom.
-         */
-        function simulatePinch(scale) {
+        function setScale(scale) {
             scaleSlider.value = scale;
-            scaleLabel.textContent = scale.toFixed(1) + 'x';
-            applyFix(currentFix);
-            scrollContainer.scrollTo(0, 0);
-            updateActiveButtons(scale);
+            applyScale(scale);
         }
 
-        // Slider for fine-grained control
         scaleSlider.addEventListener('input', () => {
-            const scale = parseFloat(scaleSlider.value);
-            scaleLabel.textContent = scale.toFixed(1) + 'x';
-            applyFix(currentFix);
-            updateActiveButtons(scale);
+            applyScale(parseFloat(scaleSlider.value));
         });
 
-        function updateActiveButtons(scale) {
-            document.querySelectorAll('.pinch-btn').forEach(btn => {
-                const btnScale = parseFloat(btn.textContent);
-                btn.classList.toggle('active', btnScale === scale);
-            });
-        }
-
-        let currentFix = 'none';
-
-        function applyFix(fix, btn) {
-            currentFix = fix;
-            const scale = parseFloat(scaleSlider.value);
-
-            // Reset all fixes
-            transformArea.style.filter = '';
-            transformArea.style.perspective = '';
-            transformArea.style.zoom = '';
+        function applyScale(scale) {
+            scaleLabel.textContent = scale.toFixed(1) + 'x';
             transformArea.style.transform = `scale(${scale})`;
-            transformArea.style.contentVisibility = '';
-            document.querySelectorAll('.panel-body').forEach(el => {
-                el.style.zoom = '';
-                el.style.filter = '';
-                el.style.contentVisibility = '';
-                el.style.opacity = '';
+            scrollContainer.scrollTo(0, 0);
+            infoEl.textContent = `scale: ${scale} | transform: scale(${scale})`;
+
+            document.querySelectorAll('.pinch-btn').forEach(btn => {
+                btn.classList.toggle('active', parseFloat(btn.textContent) === scale);
             });
-            document.querySelectorAll('.child-panel').forEach(el => {
-                el.style.zoom = '';
-                el.style.contentVisibility = '';
-                el.style.contain = '';
-            });
-
-            switch (fix) {
-                case 'none':
-                    break;
-
-                case 'filter':
-                    document.querySelectorAll('.panel-body').forEach(el => {
-                        el.style.filter = 'blur(0px)';
-                    });
-                    break;
-
-                case 'filter-parent':
-                    transformArea.style.filter = 'blur(0px)';
-                    break;
-
-                case 'repaint':
-                    transformArea.style.display = 'none';
-                    transformArea.offsetHeight;
-                    transformArea.style.display = '';
-                    break;
-
-                case 'opacity-hack':
-                    document.querySelectorAll('.panel-body').forEach(el => {
-                        el.style.opacity = '0.999';
-                    });
-                    break;
-
-                case 'perspective':
-                    transformArea.style.perspective = '1000px';
-                    break;
-
-                case 'contain':
-                    document.querySelectorAll('.child-panel').forEach(el => {
-                        el.style.contain = 'layout paint';
-                    });
-                    break;
-            }
-
-            // Update fix button highlights
-            document.querySelectorAll('.fix-btn').forEach(b => b.classList.remove('active'));
-            if (btn) btn.classList.add('active');
-
-            const method = fix === 'zoom' ? `zoom: ${scale}` : `transform: scale(${scale})`;
-            infoEl.textContent = `scale: ${scale} | ${method} | fix: ${fix}`;
         }
 
         // Draw canvas bar chart
